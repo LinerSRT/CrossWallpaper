@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1081CD</color>
+    <color name="primary_dark">#0D68A5</color>
+    <color name="disabled">#A1A1A1</color>
+    <color name="window_background">#FFFFFF</color>
+    <color name="white">#FFFFFF</color>
+</resources>
