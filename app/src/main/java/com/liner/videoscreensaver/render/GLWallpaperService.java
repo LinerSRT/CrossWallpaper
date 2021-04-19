@@ -21,12 +21,27 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.util.Util;
+import com.liner.videoscreensaver.Constant;
 import com.liner.videoscreensaver.Core;
+import com.liner.videoscreensaver.PM;
 import com.liner.videoscreensaver.Wallpaper;
 
 import java.io.IOException;
 
 public class GLWallpaperService extends WallpaperService {
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        PM.init(this);
+        PM.put(Constant.KEY_WALLPAPER_RUNNING, true);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        PM.put(Constant.KEY_WALLPAPER_RUNNING, false);
+    }
+
     class GLWallpaperEngine extends Engine {
         private final Context context;
         private GLWallpaperSurfaceView glSurfaceView = null;
