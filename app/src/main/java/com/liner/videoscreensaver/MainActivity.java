@@ -9,13 +9,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.OvershootInterpolator;
+import android.widget.CompoundButton;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.liner.videoscreensaver.render.GLWallpaperService;
 import com.liner.videoscreensaver.service.ScreenSaverService;
 
@@ -25,6 +28,7 @@ import static android.provider.Settings.canDrawOverlays;
 public class MainActivity extends AppCompatActivity {
     private RoundedVideoView crossRedView;
     private RoundedVideoView crossBlackView;
+    private SwitchMaterial enableScreenSaver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         crossBlackView = findViewById(R.id.crossBlackView);
         crossRedView = findViewById(R.id.crossRedView);
+        enableScreenSaver = findViewById(R.id.enableScreensaver);
+        enableScreenSaver.setChecked(PM.get(Constant.KEY_SCREENSAVER_ENABLED, false));
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(ContextCompat.getColor(this, R.color.disabled));
@@ -80,12 +86,31 @@ public class MainActivity extends AppCompatActivity {
                             startActivity(intent);
                         }).setInterpolator(new OvershootInterpolator()).setDuration(200).start()).setInterpolator(new OvershootInterpolator()).setDuration(200).start());
 
-
+        enableScreenSaver.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                PM.put(Constant.KEY_SCREENSAVER_ENABLED, enableScreenSaver.isChecked());
+                Intent serviceIntent = new Intent(MainActivity.this, ScreenSaverService.class);
+                if(enableScreenSaver.isChecked()){
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(serviceIntent);
+                    } else {
+                        startService(serviceIntent);
+                    }
+                } else {
+                    stopService(serviceIntent);
+                }
+            }
+        });
         Intent serviceIntent = new Intent(MainActivity.this, ScreenSaverService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
+        if(enableScreenSaver.isChecked()){
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
         } else {
-            startService(serviceIntent);
+            stopService(serviceIntent);
         }
     }
 

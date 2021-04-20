@@ -2,6 +2,7 @@ package com.liner.videoscreensaver.service;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
+import android.app.KeyguardManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -17,6 +18,7 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -32,6 +34,7 @@ import com.liner.videoscreensaver.Constant;
 import com.liner.videoscreensaver.Core;
 import com.liner.videoscreensaver.PM;
 import com.liner.videoscreensaver.R;
+import com.liner.videoscreensaver.WakeLocker;
 import com.liner.videoscreensaver.receiver.RestartReceiver;
 
 import java.util.Calendar;
@@ -47,7 +50,7 @@ import static com.liner.videoscreensaver.Constant.SHOWN_DELAY;
 public class ScreenSaverService extends Service implements SensorEventListener {
     private SensorManager sensorManager;
     private Sensor accelerometer;
-    private float accelerometerValue;
+    private float accelerometerValues[];
     private View parentView;
     private boolean isShown = false;
     private boolean isDeviceInactive = false;
@@ -58,7 +61,7 @@ public class ScreenSaverService extends Service implements SensorEventListener {
         PM.init(this);
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        accelerometerValue = 0f;
+        accelerometerValues = new float[3];
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "CVSService")
                 .setSmallIcon(R.drawable.image)
                 .setContentTitle("Приложение запущено")
@@ -74,13 +77,14 @@ public class ScreenSaverService extends Service implements SensorEventListener {
         startForeground(9, notificationBuilder.build());
     }
 
-    @SuppressLint("InflateParams")
+    @SuppressLint({"InflateParams", "ClickableViewAccessibility"})
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (((boolean) PM.get(Constant.KEY_WALLPAPER_RUNNING, false))) {
+        if (((boolean) PM.get(Constant.KEY_SCREENSAVER_ENABLED, false))) {
             WindowManager windowManager = ((WindowManager) getSystemService(WINDOW_SERVICE));
             LayoutInflater layoutInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             parentView = layoutInflater.inflate(R.layout.screensaver_layout, null);
+            parentView.post(() -> parentView.setVisibility(View.GONE));
             WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT,
@@ -90,6 +94,11 @@ public class ScreenSaverService extends Service implements SensorEventListener {
                             | WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
                             | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                             | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                            | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+                            | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                            | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                            | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                            | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                             | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD,
                     PixelFormat.TRANSLUCENT);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !canDrawOverlays(ScreenSaverService.this)) {
@@ -104,31 +113,20 @@ public class ScreenSaverService extends Service implements SensorEventListener {
                 mediaPlayer.start();
             });
             screenSaverVideoView.setVideoURI(getUriFromRawFile(ScreenSaverService.this, (Core.selectedWallpaper == Core.cross_black_texture) ? R.raw.cross_black_texture : R.raw.cross_red_texture));
-            parentView.setOnTouchListener(new View.OnTouchListener() {
-                private final GestureDetector gestureDetector = new GestureDetector(ScreenSaverService.this, new GestureDetector.SimpleOnGestureListener() {
-                    @Override
-                    public boolean onDoubleTap(MotionEvent e) {
-                        parentView.post(() -> parentView.setVisibility(View.GONE));
-                        isShown = false;
-                        return true;
-                    }
-
-                });
-
-                @SuppressLint("ClickableViewAccessibility")
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    gestureDetector.onTouchEvent(event);
-                    return true;
-                }
+            parentView.setOnTouchListener((v, event) -> {
+                parentView.post(() -> parentView.setVisibility(View.GONE));
+                isShown = false;
+                WakeLocker.release();
+                return true;
             });
             Timer timer = new Timer();
             TimerTask timerTask = new TimerTask() {
                 @Override
                 public void run() {
-                    if (!isShown && ((boolean) PM.get(Constant.KEY_WALLPAPER_RUNNING, false)) && isDeviceInactive) {
+                    if (!isShown && ((boolean) PM.get(Constant.KEY_SCREENSAVER_ENABLED, false)) && isDeviceInactive) {
                         parentView.post(() -> parentView.setVisibility(View.VISIBLE));
                         isShown = true;
+                        WakeLocker.acquireHalf(ScreenSaverService.this, "cross:Enable");
                     }
                 }
             };
@@ -179,8 +177,8 @@ public class ScreenSaverService extends Service implements SensorEventListener {
     public void onSensorChanged(SensorEvent sensorEvent) {
         if(sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
             if(sensorEvent.values[0] != 0) {
-                isDeviceInactive = Math.round(accelerometerValue) == Math.round(sensorEvent.values[0]);
-                accelerometerValue = sensorEvent.values[0];
+                isDeviceInactive = (Math.round(accelerometerValues[0]) == Math.round(sensorEvent.values[0])) && Math.round(accelerometerValues[1]) == Math.round(sensorEvent.values[1]);
+                accelerometerValues = sensorEvent.values;
                 sensorManager.unregisterListener(this);
             }
         }

@@ -2,6 +2,7 @@ package com.liner.videoscreensaver.render;
 
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ConfigurationInfo;
 import android.content.res.AssetFileDescriptor;
 import android.media.MediaMetadataRetriever;
@@ -41,6 +42,7 @@ public class GLWallpaperService extends WallpaperService {
         super.onDestroy();
         PM.put(Constant.KEY_WALLPAPER_RUNNING, false);
     }
+
 
     class GLWallpaperEngine extends Engine {
         private final Context context;

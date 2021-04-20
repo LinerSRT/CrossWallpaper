@@ -2,5 +2,6 @@
     <string name="app_name">Крест ЕП</string>
     <string name="activity_title">КРЕСТ</string>
     <string name="activity_title2">ЕВФРОСИНИИ ПОЛОЦКОЙ</string>
-    <string name="press_to_apply">НАЖМИТЕ ЧТО БЫ ПРИМЕНИТЬ</string>
+    <string name="press_to_apply">ВЫБЕРИТЕ, ЧТОБЫ ПРИМЕНИТЬ</string>
+    <string name="enable_screensaver_text">Включить отображение заставки</string>
 </resources>
